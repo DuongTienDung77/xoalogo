@@ -5,15 +5,15 @@ import { processImage, describeImage } from './services/geminiService';
 import { fileToBase64 } from './utils/imageUtils';
 import { KeySelectionOverlay } from './components/KeySelectionOverlay';
 
-// Fix: Define a named interface 'AIStudio' and use it on the global 'Window' object.
-// This resolves a TypeScript error where 'window.aistudio' was declared with a conflicting
-// anonymous type, ensuring compatibility with other global type declarations in the project.
-interface AIStudio {
-  hasSelectedApiKey: () => Promise<boolean>;
-  openSelectKey: () => Promise<void>;
-}
-
+// Fix: By moving the AIStudio interface inside the `declare global` block,
+// we ensure it's treated as a single, global type declaration. This resolves
+// a TypeScript error where duplicate or conflicting type definitions for
+// 'window.aistudio' could occur across different modules or scopes.
 declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
   interface Window {
     aistudio?: AIStudio;
   }
@@ -21,6 +21,7 @@ declare global {
 
 function App() {
   const [hasSelectedKey, setHasSelectedKey] = useState<boolean>(false);
+  const [isAistudioAvailable, setIsAistudioAvailable] = useState<boolean>(true);
   const [originalImage, setOriginalImage] = useState<File | null>(null);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -34,8 +35,12 @@ function App() {
   useEffect(() => {
     const checkKey = async () => {
         if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+            setIsAistudioAvailable(true);
             const keyStatus = await window.aistudio.hasSelectedApiKey();
             setHasSelectedKey(keyStatus);
+        } else {
+            console.warn("AI Studio context not found. Key selection will not work.");
+            setIsAistudioAvailable(false);
         }
     };
     checkKey();
@@ -150,7 +155,7 @@ function App() {
   return (
     <>
       {!hasSelectedKey && (
-        <KeySelectionOverlay onSelectKey={handleSelectKey} />
+        <KeySelectionOverlay onSelectKey={handleSelectKey} isAistudioAvailable={isAistudioAvailable} />
       )}
       <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col items-center p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-6xl mx-auto">
