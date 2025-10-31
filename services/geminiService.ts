@@ -1,10 +1,9 @@
 import { GoogleGenAI, Modality, GenerateContentResponse } from "@google/genai";
 
-const getAiClient = (apiKey: string): GoogleGenAI => {
-  if (!apiKey) {
-    throw new Error("Khóa API Gemini là bắt buộc.");
-  }
-  return new GoogleGenAI({ apiKey });
+const getAiClient = (): GoogleGenAI => {
+  // The API key is injected by the platform environment.
+  // A new client is created for each request to ensure the latest key is used.
+  return new GoogleGenAI({ apiKey: process.env.API_KEY });
 };
 
 interface ProcessedImageResult {
@@ -13,12 +12,11 @@ interface ProcessedImageResult {
 }
 
 export const describeImage = async (
-  apiKey: string,
   base64ImageData: string,
   mimeType: string
 ): Promise<string> => {
     try {
-        const ai = getAiClient(apiKey);
+        const ai = getAiClient();
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash', // Use a fast model for text generation
             contents: {
@@ -44,25 +42,19 @@ export const describeImage = async (
 
     } catch(error) {
         console.error("Lỗi khi gọi API Gemini để mô tả:", error);
-        if (error instanceof Error) {
-            if (error.message.includes('API key not valid')) {
-                 throw new Error(`API key not valid`);
-            }
-            throw new Error(`Không thể phân tích ảnh bằng AI. ${error.message}`);
-        }
-        throw new Error("Không thể phân tích ảnh bằng AI. Đã xảy ra lỗi không xác định.");
+        // Rethrow the original error to be handled by the UI component
+        throw error;
     }
 }
 
 export const processImage = async (
-  apiKey: string,
   base64ImageData: string,
   mimeType: string,
   prompt: string,
   maskBase64Data?: string
 ): Promise<ProcessedImageResult> => {
   try {
-    const ai = getAiClient(apiKey);
+    const ai = getAiClient();
     const parts: ({ text: string } | { inlineData: { data: string, mimeType: string } })[] = [
       {
         inlineData: {
@@ -116,12 +108,7 @@ export const processImage = async (
 
   } catch (error) {
     console.error("Lỗi khi gọi API Gemini:", error);
-    if (error instanceof Error) {
-        if (error.message.includes('API key not valid')) {
-            throw new Error(`API key not valid`);
-        }
-        throw new Error(`Không thể xử lý ảnh bằng AI. ${error.message}`);
-    }
-    throw new Error("Không thể xử lý ảnh bằng AI. Đã xảy ra lỗi không xác định.");
+    // Rethrow the original error to be handled by the UI component
+    throw error;
   }
 };

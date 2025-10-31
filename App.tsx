@@ -1,13 +1,26 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { ImageUploader } from './components/ImageUploader';
 import { ResultDisplay } from './components/ResultDisplay';
 import { processImage, describeImage } from './services/geminiService';
 import { fileToBase64 } from './utils/imageUtils';
-import { ApiKeyPrompt } from './components/ApiKeyPrompt';
+import { KeySelectionOverlay } from './components/KeySelectionOverlay';
+
+// Fix: Define a named interface 'AIStudio' and use it on the global 'Window' object.
+// This resolves a TypeScript error where 'window.aistudio' was declared with a conflicting
+// anonymous type, ensuring compatibility with other global type declarations in the project.
+interface AIStudio {
+  hasSelectedApiKey: () => Promise<boolean>;
+  openSelectKey: () => Promise<void>;
+}
+
+declare global {
+  interface Window {
+    aistudio?: AIStudio;
+  }
+}
 
 function App() {
-  const [apiKey, setApiKey] = useState<string | null>(() => sessionStorage.getItem('gemini-api-key'));
-  const [showApiKeyPrompt, setShowApiKeyPrompt] = useState<boolean>(!sessionStorage.getItem('gemini-api-key'));
+  const [hasSelectedKey, setHasSelectedKey] = useState<boolean>(false);
   const [originalImage, setOriginalImage] = useState<File | null>(null);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -18,11 +31,28 @@ function App() {
   const [objectRemovalMode, setObjectRemovalMode] = useState<'mask' | 'prompt'>('mask');
   const [objectPrompt, setObjectPrompt] = useState<string>('');
 
-  const handleApiKeySubmit = (key: string) => {
-    sessionStorage.setItem('gemini-api-key', key);
-    setApiKey(key);
-    setShowApiKeyPrompt(false);
+  useEffect(() => {
+    const checkKey = async () => {
+        if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+            const keyStatus = await window.aistudio.hasSelectedApiKey();
+            setHasSelectedKey(keyStatus);
+        }
+    };
+    checkKey();
+  }, []);
+
+  const handleSelectKey = async () => {
+    if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+        try {
+            await window.aistudio.openSelectKey();
+            // Optimistically assume key selection was successful to improve UX
+            setHasSelectedKey(true);
+        } catch (e) {
+            console.error("Lỗi khi mở hộp thoại chọn khóa:", e);
+        }
+    }
   };
+
 
   const handleImageUpload = (file: File) => {
     setOriginalImage(file);
@@ -55,10 +85,9 @@ function App() {
       setError("Vui lòng tải ảnh lên trước.");
       return;
     }
-    if (!apiKey) {
-      setError("Vui lòng cung cấp khóa API của bạn trước.");
-      setShowApiKeyPrompt(true);
-      return;
+    if (!hasSelectedKey) {
+        setError("Vui lòng chọn một Khóa API trước khi xử lý hình ảnh.");
+        return;
     }
 
     setIsLoading(true);
@@ -90,13 +119,13 @@ function App() {
         }
 
         setLoadingMessage("Bước 1/2: Đang phân tích bối cảnh ảnh...");
-        const imageContext = await describeImage(apiKey, base64Image, originalImage.type);
+        const imageContext = await describeImage(base64Image, originalImage.type);
 
         setLoadingMessage("Bước 2/2: Đang xóa đối tượng...");
         finalPrompt = `Remove ${removalTarget} from the image seamlessly. Reconstruct the missing area with perfect visual consistency, matching the original lighting, color grading, texture, and depth of field. The background context is: ${imageContext}. Maintain the original composition, photorealistic details, and ensure there are no visible editing marks or blur transitions. The final image must look untouched and of high-end quality, as if the removed subject never existed. The output must only be the edited image.`;
       }
       
-      const { base64: processedBase64 } = await processImage(apiKey, base64Image, originalImage.type, finalPrompt, maskBase64);
+      const { base64: processedBase64 } = await processImage(base64Image, originalImage.type, finalPrompt, maskBase64);
       
       if (processedBase64) {
         setProcessedImage(`data:image/png;base64,${processedBase64}`);
@@ -106,11 +135,9 @@ function App() {
 
     } catch (err) {
       console.error(err);
-      if (err instanceof Error && err.message.includes('API key not valid')) {
-        sessionStorage.removeItem('gemini-api-key');
-        setApiKey(null);
-        setShowApiKeyPrompt(true);
-        setError("Khóa API không hợp lệ. Vui lòng cung cấp khóa hợp lệ.");
+      if (err instanceof Error && err.message.includes('Requested entity was not found')) {
+        setHasSelectedKey(false);
+        setError("Khóa API đã chọn không hợp lệ hoặc không có quyền truy cập. Vui lòng chọn một khóa khác.");
       } else {
         setError(err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.");
       }
@@ -118,16 +145,12 @@ function App() {
       setIsLoading(false);
       setLoadingMessage('');
     }
-  }, [originalImage, editMode, maskImage, objectRemovalMode, objectPrompt, apiKey]);
+  }, [originalImage, editMode, maskImage, objectRemovalMode, objectPrompt, hasSelectedKey]);
 
   return (
     <>
-      {showApiKeyPrompt && (
-        <ApiKeyPrompt 
-          onApiKeySubmit={handleApiKeySubmit} 
-          hasExistingKey={!!apiKey}
-          onClose={() => setShowApiKeyPrompt(false)}
-        />
+      {!hasSelectedKey && (
+        <KeySelectionOverlay onSelectKey={handleSelectKey} />
       )}
       <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col items-center p-4 sm:p-6 lg:p-8">
         <div className="w-full max-w-6xl mx-auto">
@@ -140,7 +163,7 @@ function App() {
             </p>
             <div className="mt-4">
               <button 
-                  onClick={() => setShowApiKeyPrompt(true)}
+                  onClick={handleSelectKey}
                   className="px-4 py-2 text-sm font-medium text-blue-300 bg-gray-800/80 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors"
               >
                   Thay đổi khóa API
