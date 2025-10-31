@@ -1,0 +1,5 @@
+{
+  "name": "Xóa logo và đối tượng",
+  "description": "Một ứng dụng web thông minh sử dụng API Gemini để xóa hình mờ và văn bản khỏi hình ảnh được tải lên, mang lại kết quả sạch, chất lượng cao có thể tải xuống.",
+  "requestFramePermissions": []
+}
