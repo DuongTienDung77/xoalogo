@@ -1,9 +1,13 @@
 import { GoogleGenAI, Modality, GenerateContentResponse } from "@google/genai";
 
-const getAiClient = (): GoogleGenAI => {
-  // The API key is injected by the platform environment.
-  // A new client is created for each request to ensure the latest key is used.
-  return new GoogleGenAI({ apiKey: process.env.API_KEY });
+const getAiClient = (apiKey?: string | null): GoogleGenAI => {
+  // For external use, an API key must be provided by the user.
+  // For AI Studio, the key is injected into process.env.API_KEY.
+  const keyToUse = apiKey || process.env.API_KEY;
+  if (!keyToUse) {
+      throw new Error("API Key not found. Please provide a key or run in an environment where it is available.");
+  }
+  return new GoogleGenAI({ apiKey: keyToUse });
 };
 
 interface ProcessedImageResult {
@@ -13,10 +17,11 @@ interface ProcessedImageResult {
 
 export const describeImage = async (
   base64ImageData: string,
-  mimeType: string
+  mimeType: string,
+  apiKey?: string | null
 ): Promise<string> => {
     try {
-        const ai = getAiClient();
+        const ai = getAiClient(apiKey);
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash', // Use a fast model for text generation
             contents: {
@@ -51,10 +56,11 @@ export const processImage = async (
   base64ImageData: string,
   mimeType: string,
   prompt: string,
+  apiKey?: string | null,
   maskBase64Data?: string
 ): Promise<ProcessedImageResult> => {
   try {
-    const ai = getAiClient();
+    const ai = getAiClient(apiKey);
     const parts: ({ text: string } | { inlineData: { data: string, mimeType: string } })[] = [
       {
         inlineData: {
