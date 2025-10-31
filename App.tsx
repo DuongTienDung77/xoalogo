@@ -7,6 +7,7 @@ import { ApiKeyPrompt } from './components/ApiKeyPrompt';
 
 function App() {
   const [apiKey, setApiKey] = useState<string | null>(() => sessionStorage.getItem('gemini-api-key'));
+  const [showApiKeyPrompt, setShowApiKeyPrompt] = useState<boolean>(!sessionStorage.getItem('gemini-api-key'));
   const [originalImage, setOriginalImage] = useState<File | null>(null);
   const [processedImage, setProcessedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -20,6 +21,7 @@ function App() {
   const handleApiKeySubmit = (key: string) => {
     sessionStorage.setItem('gemini-api-key', key);
     setApiKey(key);
+    setShowApiKeyPrompt(false);
   };
 
   const handleImageUpload = (file: File) => {
@@ -55,6 +57,7 @@ function App() {
     }
     if (!apiKey) {
       setError("Vui lòng cung cấp khóa API của bạn trước.");
+      setShowApiKeyPrompt(true);
       return;
     }
 
@@ -106,6 +109,7 @@ function App() {
       if (err instanceof Error && err.message.includes('API key not valid')) {
         sessionStorage.removeItem('gemini-api-key');
         setApiKey(null);
+        setShowApiKeyPrompt(true);
         setError("Khóa API không hợp lệ. Vui lòng cung cấp khóa hợp lệ.");
       } else {
         setError(err instanceof Error ? err.message : "Đã xảy ra lỗi không xác định.");
@@ -116,46 +120,59 @@ function App() {
     }
   }, [originalImage, editMode, maskImage, objectRemovalMode, objectPrompt, apiKey]);
 
-  if (!apiKey) {
-    return <ApiKeyPrompt onApiKeySubmit={handleApiKeySubmit} />;
-  }
-
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col items-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-6xl mx-auto">
-        <header className="text-center mb-8">
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
-            Trình Chỉnh Sửa Ảnh AI
-          </h1>
-          <p className="mt-2 text-lg text-gray-400">
-            Tải ảnh lên để xóa logo, văn bản hoặc đối tượng một cách kỳ diệu trong vài giây.
-          </p>
-        </header>
+    <>
+      {showApiKeyPrompt && (
+        <ApiKeyPrompt 
+          onApiKeySubmit={handleApiKeySubmit} 
+          hasExistingKey={!!apiKey}
+          onClose={() => setShowApiKeyPrompt(false)}
+        />
+      )}
+      <div className="min-h-screen bg-gray-900 text-gray-100 flex flex-col items-center p-4 sm:p-6 lg:p-8">
+        <div className="w-full max-w-6xl mx-auto">
+          <header className="text-center mb-8">
+            <h1 className="text-4xl sm:text-5xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-500">
+              Trình Chỉnh Sửa Ảnh AI
+            </h1>
+            <p className="mt-2 text-lg text-gray-400">
+              Tải ảnh lên để xóa logo, văn bản hoặc đối tượng một cách kỳ diệu trong vài giây.
+            </p>
+            <div className="mt-4">
+              <button 
+                  onClick={() => setShowApiKeyPrompt(true)}
+                  className="px-4 py-2 text-sm font-medium text-blue-300 bg-gray-800/80 border border-gray-700 rounded-lg hover:bg-gray-700 transition-colors"
+              >
+                  Thay đổi khóa API
+              </button>
+            </div>
+          </header>
 
-        <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <ImageUploader 
-            onImageUpload={handleImageUpload} 
-            onProcessImage={handleProcessImage} 
-            isLoading={isLoading} 
-            originalImage={originalImage}
-            editMode={editMode}
-            onEditModeChange={handleEditModeChange}
-            maskImage={maskImage}
-            onMaskImageChange={setMaskImage}
-            objectRemovalMode={objectRemovalMode}
-            onObjectRemovalModeChange={handleObjectRemovalModeChange}
-            objectPrompt={objectPrompt}
-            onObjectPromptChange={setObjectPrompt}
-          />
-          <ResultDisplay 
-            processedImage={processedImage} 
-            isLoading={isLoading} 
-            error={error}
-            loadingMessage={loadingMessage}
-          />
-        </main>
+          <main className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <ImageUploader 
+              onImageUpload={handleImageUpload} 
+              onProcessImage={handleProcessImage} 
+              isLoading={isLoading} 
+              originalImage={originalImage}
+              editMode={editMode}
+              onEditModeChange={handleEditModeChange}
+              maskImage={maskImage}
+              onMaskImageChange={setMaskImage}
+              objectRemovalMode={objectRemovalMode}
+              onObjectRemovalModeChange={handleObjectRemovalModeChange}
+              objectPrompt={objectPrompt}
+              onObjectPromptChange={setObjectPrompt}
+            />
+            <ResultDisplay 
+              processedImage={processedImage} 
+              isLoading={isLoading} 
+              error={error}
+              loadingMessage={loadingMessage}
+            />
+          </main>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

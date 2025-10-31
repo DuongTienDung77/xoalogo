@@ -2,9 +2,11 @@ import React, { useState } from 'react';
 
 interface ApiKeyPromptProps {
   onApiKeySubmit: (apiKey: string) => void;
+  onClose: () => void;
+  hasExistingKey: boolean;
 }
 
-export const ApiKeyPrompt: React.FC<ApiKeyPromptProps> = ({ onApiKeySubmit }) => {
+export const ApiKeyPrompt: React.FC<ApiKeyPromptProps> = ({ onApiKeySubmit, onClose, hasExistingKey }) => {
   const [key, setKey] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -17,12 +19,14 @@ export const ApiKeyPrompt: React.FC<ApiKeyPromptProps> = ({ onApiKeySubmit }) =>
   return (
     <div className="fixed inset-0 bg-gray-900 bg-opacity-90 backdrop-blur-sm flex items-center justify-center z-50 p-4">
       <div className="bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl p-6 sm:p-8 max-w-md w-full text-center">
-        <h1 className="text-2xl sm:text-3xl font-bold mb-3 text-gray-100">Yêu cầu khóa API</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-3 text-gray-100">
+          {hasExistingKey ? 'Thay đổi Khóa API' : 'Yêu cầu khóa API'}
+        </h1>
         <p className="text-gray-400 mb-6">
-          Vui lòng cung cấp Khóa API Gemini của bạn để sử dụng ứng dụng.
+           {hasExistingKey ? 'Dán Khóa API Gemini mới của bạn vào bên dưới.' : 'Vui lòng cung cấp Khóa API Gemini của bạn để sử dụng ứng dụng.'}
         </p>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="password"
             value={key}
@@ -31,13 +35,24 @@ export const ApiKeyPrompt: React.FC<ApiKeyPromptProps> = ({ onApiKeySubmit }) =>
             className="w-full px-4 py-3 bg-gray-900 border border-gray-600 rounded-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
             aria-label="Gemini API Key Input"
           />
-          <button
-            type="submit"
-            disabled={!key.trim()}
-            className="w-full px-6 py-3 text-lg font-semibold text-white bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500"
-          >
-            Lưu và Sử dụng Khóa
-          </button>
+          <div className="flex flex-col sm:flex-row gap-3">
+            {hasExistingKey && (
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full px-6 py-3 text-lg font-semibold text-gray-300 bg-gray-700 rounded-lg shadow-lg hover:bg-gray-600 transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-gray-500"
+              >
+                Hủy
+              </button>
+            )}
+            <button
+              type="submit"
+              disabled={!key.trim()}
+              className="w-full px-6 py-3 text-lg font-semibold text-white bg-blue-600 rounded-lg shadow-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500"
+            >
+              {hasExistingKey ? 'Cập nhật Khóa' : 'Lưu và Sử dụng Khóa'}
+            </button>
+          </div>
         </form>
         <p className="text-xs text-gray-500 mt-6">
           Khóa của bạn được lưu trữ an toàn trong trình duyệt của bạn và không bao giờ được gửi đi nơi khác.
